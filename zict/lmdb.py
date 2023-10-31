@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import platform
 from collections.abc import Iterable, Iterator
 
 from zict.common import ZictBase
@@ -36,7 +37,17 @@ class LMDB(ZictBase[str, bytes]):
 
         # map_size is the maximum database size but shouldn't fill up the
         # virtual address space
-        map_size = 1 << 40 if sys.maxsize >= 2**32 else 1 << 28
+        machine = platform.machine()
+        if sys.platform == "win32":
+            map_size = 10 * 2**20
+        elif machine in ["x86_64", "x64"]:
+            map_size = 2**40
+        elif machine in ["i386", "i686", "x86"]:
+            map_size = 2**30
+        elif machine.startswith("aarch64") or machine.startswith("armv8") or machine.startswith("riscv64"):
+            map_size = 2**37
+        else:
+            map_size = min(2**40, sys.maxsize // 4)
         # writemap requires sparse file support otherwise the whole
         # `map_size` may be reserved up front on disk
         writemap = sys.platform.startswith("linux")
